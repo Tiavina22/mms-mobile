@@ -41,7 +41,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final chatProvider = context.read<ChatProvider>();
     final messages = await chatProvider.getMessagesWithUser(widget.user.id);
     setState(() {
-      _messages = messages;
+      _messages = List<Message>.from(messages.reversed);
       _isLoading = false;
     });
     _scrollToBottom();

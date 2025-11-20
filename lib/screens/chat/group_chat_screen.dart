@@ -41,7 +41,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final groupProvider = context.read<GroupProvider>();
     final messages = await groupProvider.getGroupMessages(widget.group.id);
     setState(() {
-      _messages = messages;
+      _messages = List<GroupMessage>.from(messages.reversed);
       _isLoading = false;
     });
     _scrollToBottom();
