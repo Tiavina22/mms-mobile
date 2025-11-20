@@ -96,6 +96,9 @@ class ChatProvider with ChangeNotifier {
           'content': content,
         });
 
+        // refresh conversations list so Chats tab shows latest contact
+        await loadConversations();
+
         notifyListeners();
         return true;
       }
@@ -136,6 +139,56 @@ class ChatProvider with ChangeNotifier {
       }
     } catch (e) {
       _error = 'Failed to handle incoming message: $e';
+    }
+  }
+
+  Future<bool> editMessage(String otherUserId, String messageId, String content) async {
+    try {
+      final updated = await _messageService.editMessage(
+        messageId: messageId,
+        content: content,
+      );
+
+      if (updated != null) {
+        if (_messageCache.containsKey(otherUserId)) {
+          final list = _messageCache[otherUserId]!;
+          final index = list.indexWhere((m) => m.id == messageId);
+          if (index != -1) {
+            list[index] = updated;
+          }
+        }
+        await loadConversations();
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      _error = 'Failed to edit message: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> deleteMessage(String otherUserId, String messageId) async {
+    try {
+      final deleted = await _messageService.deleteMessage(messageId);
+      if (deleted != null) {
+        if (_messageCache.containsKey(otherUserId)) {
+          final list = _messageCache[otherUserId]!;
+          final index = list.indexWhere((m) => m.id == messageId);
+          if (index != -1) {
+            list[index] = deleted;
+          }
+        }
+        await loadConversations();
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      _error = 'Failed to delete message: $e';
+      notifyListeners();
+      return false;
     }
   }
 

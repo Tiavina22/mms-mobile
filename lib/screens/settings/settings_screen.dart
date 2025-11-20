@@ -44,7 +44,7 @@ class SettingsScreen extends StatelessWidget {
                 ListTile(
                   title: Text('About MMS'),
                   subtitle: Text(
-                    'A modern messaging experience focused on privacy, speed, and real-time collaboration.',
+                    'A messaging experience focused on privacy, speed, and real-time collaboration.',
                   ),
                 ),
               ],

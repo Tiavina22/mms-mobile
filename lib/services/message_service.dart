@@ -80,5 +80,45 @@ class MessageService {
       throw Exception('Failed to fetch conversations: $e');
     }
   }
+
+  Future<Message?> editMessage({
+    required String messageId,
+    required String content,
+  }) async {
+    try {
+      final response = await _api.put(
+        ApiConfig.messageById(messageId),
+        body: {'content': content},
+      );
+
+      if (_api.isSuccess(response)) {
+        final responseData = jsonDecode(response.body);
+        final data = responseData['data'] as Map<String, dynamic>;
+        return Message.fromJson(data);
+      } else {
+        throw Exception(_api.getErrorMessage(response));
+      }
+    } catch (e) {
+      throw Exception('Failed to edit message: $e');
+    }
+  }
+
+  Future<Message?> deleteMessage(String messageId) async {
+    try {
+      final response = await _api.delete(
+        ApiConfig.messageById(messageId),
+      );
+
+      if (_api.isSuccess(response)) {
+        final responseData = jsonDecode(response.body);
+        final data = responseData['data'] as Map<String, dynamic>;
+        return Message.fromJson(data);
+      } else {
+        throw Exception(_api.getErrorMessage(response));
+      }
+    } catch (e) {
+      throw Exception('Failed to delete message: $e');
+    }
+  }
 }
 

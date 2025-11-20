@@ -155,9 +155,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               ),
                             ),
                           MessageBubble(
-                            message: message.content,
+                            content: message.content,
                             isMe: isMe,
                             time: timeago.format(message.createdAt),
+                            isDeleted: false,
+                            isEdited: false,
                           ),
                         ],
                       );

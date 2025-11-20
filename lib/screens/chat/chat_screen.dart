@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../models/user.dart';
@@ -79,6 +80,147 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void _showMessageOptions(Message message) {
+    final authProvider = context.read<AuthProvider>();
+    final currentUserId = authProvider.currentUser?.id;
+    final isMe = message.senderId == currentUserId;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.copy),
+                title: const Text('Copy text'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Clipboard.setData(ClipboardData(text: message.content));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Message copied')),
+                  );
+                },
+              ),
+              if (isMe && !message.isDeleted)
+                ListTile(
+                  leading: const Icon(Icons.edit),
+                  title: const Text('Edit message'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _promptEditMessage(message);
+                  },
+                ),
+              if (isMe)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline),
+                  title: const Text('Delete message'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _confirmDeleteMessage(message);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _promptEditMessage(Message message) async {
+    final controller = TextEditingController(text: message.content);
+
+    final newContent = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit message'),
+          content: TextField(
+            controller: controller,
+            maxLines: null,
+            autofocus: true,
+            decoration: const InputDecoration(hintText: 'Update your message'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context, controller.text.trim());
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
+    if (newContent == null ||
+        newContent.isEmpty ||
+        newContent == message.content) {
+      return;
+    }
+
+    final chatProvider = context.read<ChatProvider>();
+    final success = await chatProvider.editMessage(
+      widget.user.id,
+      message.id,
+      newContent,
+    );
+
+    if (!mounted) return;
+    if (success) {
+      await _loadMessages();
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to edit message')));
+    }
+  }
+
+  Future<void> _confirmDeleteMessage(Message message) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete message?'),
+          content: const Text('This message will be marked as deleted.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true || !mounted) return;
+
+    final chatProvider = context.read<ChatProvider>();
+    final success = await chatProvider.deleteMessage(
+      widget.user.id,
+      message.id,
+    );
+
+    if (!mounted) return;
+    if (success) {
+      await _loadMessages();
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to delete message')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
@@ -102,9 +244,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 Text(widget.user.username),
                 Text(
                   'Online',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.white70,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: Colors.white70),
                 ),
               ],
             ),
@@ -118,25 +260,26 @@ class _ChatScreenState extends State<ChatScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _messages.isEmpty
-                    ? const Center(
-                        child: Text('No messages yet\nSay hi!'),
-                      )
-                    : ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _messages.length,
-                        itemBuilder: (context, index) {
-                          final message = _messages[index];
-                          final isMe =
-                              message.senderId == currentUserId;
+                ? const Center(child: Text('No messages yet\nSay hi!'))
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final message = _messages[index];
+                      final isMe = message.senderId == currentUserId;
 
-                          return MessageBubble(
-                            message: message.content,
-                            isMe: isMe,
-                            time: timeago.format(message.createdAt),
-                          );
-                        },
-                      ),
+                      return MessageBubble(
+                        content: message.content,
+                        isMe: isMe,
+                        time: timeago.format(message.createdAt),
+                        isDeleted: message.isDeleted,
+                        isEdited: message.isEdited,
+                        previousContent: message.previousContent,
+                        onLongPress: () => _showMessageOptions(message),
+                      );
+                    },
+                  ),
           ),
 
           // Message Input
@@ -184,4 +327,3 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 }
-

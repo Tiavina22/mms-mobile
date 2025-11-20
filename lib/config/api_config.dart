@@ -30,6 +30,8 @@ class ApiConfig {
   static String messagesBetween(String userId) =>
       '$apiPrefix/messages/conversation/$userId';
   static const String conversations = '$apiPrefix/messages/conversations';
+  static String messageById(String messageId) =>
+      '$apiPrefix/messages/$messageId';
 
   // Group endpoints
   static const String groups = '$apiPrefix/groups';

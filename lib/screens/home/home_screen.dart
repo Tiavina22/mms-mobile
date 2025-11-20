@@ -70,7 +70,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MMS'),
+        title: Image.asset(
+          'assets/logo.png',
+          height: 32,
+          fit: BoxFit.contain,
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
