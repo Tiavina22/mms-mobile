@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/message.dart';
 import '../models/conversation.dart';
@@ -16,10 +17,12 @@ class ChatProvider with ChangeNotifier {
   Map<String, List<Message>> _messageCache = {};
   bool _isLoading = false;
   String? _error;
+  String? _activeChatUserId;
 
   List<Conversation> get conversations => _conversations;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  String? get activeChatUserId => _activeChatUserId;
 
   /// Initialize chat provider
   Future<void> init() async {
@@ -33,6 +36,10 @@ class ChatProvider with ChangeNotifier {
 
     // Load conversations
     await loadConversations();
+  }
+
+  void setActiveChat(String? userId) {
+    _activeChatUserId = userId;
   }
 
   /// Load conversations
@@ -56,13 +63,10 @@ class ChatProvider with ChangeNotifier {
 
   /// Get messages with a user
   Future<List<Message>> getMessagesWithUser(String userId) async {
-    // Check cache first
-    if (_messageCache.containsKey(userId)) {
-      return _messageCache[userId]!;
-    }
-
     try {
       final messages = await _messageService.getMessagesWith(userId);
+      // Sort by created_at (oldest first) for display
+      messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       _messageCache[userId] = messages;
       notifyListeners();
       return messages;
@@ -82,16 +86,20 @@ class ChatProvider with ChangeNotifier {
       );
 
       if (message != null) {
-        // Add to cache
+        // Add to cache and maintain chronological order
         if (_messageCache.containsKey(receiverId)) {
           _messageCache[receiverId]!.add(message);
+          // Sort by created_at to maintain order (oldest first)
+          _messageCache[receiverId]!.sort(
+            (a, b) => a.createdAt.compareTo(b.createdAt),
+          );
         } else {
           _messageCache[receiverId] = [message];
         }
 
         // Also send via WebSocket for real-time delivery
         _wsService.sendMessage({
-          'type': 'message',
+          'type': 'new_message',
           'receiver_id': receiverId,
           'content': content,
         });
@@ -114,27 +122,57 @@ class ChatProvider with ChangeNotifier {
   void _handleIncomingMessage(Map<String, dynamic> data) {
     try {
       final type = data['type'] as String?;
+      final currentUserId = _storage.getUserId();
+
+      if (currentUserId == null) return;
 
       if (type == 'message') {
         final message = Message.fromJson(data);
-        final currentUserId = _storage.getUserId();
 
-        if (currentUserId != null) {
-          // Determine the other user ID
-          final otherUserId = message.senderId == currentUserId
-              ? message.receiverId
-              : message.senderId;
+        // Determine the other user ID
+        final otherUserId = message.senderId == currentUserId
+            ? message.receiverId
+            : message.senderId;
 
-          // Add to cache
-          if (_messageCache.containsKey(otherUserId)) {
-            _messageCache[otherUserId]!.add(message);
-          } else {
-            _messageCache[otherUserId] = [message];
+        // Add to cache and maintain chronological order (oldest first)
+        if (_messageCache.containsKey(otherUserId)) {
+          final existing = _messageCache[otherUserId]!;
+          // Check if message already exists
+          final exists = existing.any((m) => m.id == message.id);
+          if (!exists) {
+            existing.add(message);
+            // Sort by created_at to maintain order
+            existing.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+            _messageCache[otherUserId] = existing;
           }
+        } else {
+          _messageCache[otherUserId] = [message];
+        }
 
-          // Update conversations
-          loadConversations();
-          notifyListeners();
+        // Update conversations
+        loadConversations();
+        notifyListeners();
+      } else if (type == 'message_read') {
+        // Handle read receipt - update messages I sent that were read
+        final senderId = data['sender_id'] as String?; // The one who read
+        final receiverId = data['receiver_id'] as String?; // Me (the sender)
+
+        if (receiverId == currentUserId && senderId != null) {
+          // Update messages I sent to this user
+          if (_messageCache.containsKey(senderId)) {
+            final updated = _messageCache[senderId]!
+                .map(
+                  (message) =>
+                      (message.senderId == currentUserId &&
+                          message.receiverId == senderId &&
+                          !message.isRead)
+                      ? message.copyWith(isRead: true, readAt: DateTime.now())
+                      : message,
+                )
+                .toList();
+            _messageCache[senderId] = updated;
+            notifyListeners();
+          }
         }
       }
     } catch (e) {
@@ -142,7 +180,11 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> editMessage(String otherUserId, String messageId, String content) async {
+  Future<bool> editMessage(
+    String otherUserId,
+    String messageId,
+    String content,
+  ) async {
     try {
       final updated = await _messageService.editMessage(
         messageId: messageId,
@@ -202,7 +244,43 @@ class ChatProvider with ChangeNotifier {
   void clearAllCache() {
     _messageCache.clear();
     _conversations.clear();
+    _activeChatUserId = null;
     notifyListeners();
+  }
+
+  Future<void> markConversationAsRead(String otherUserId) async {
+    try {
+      await _messageService.markConversationAsRead(otherUserId);
+
+      final currentUserId = _storage.getUserId();
+      if (currentUserId != null && _messageCache.containsKey(otherUserId)) {
+        final updated = _messageCache[otherUserId]!
+            .map(
+              (message) =>
+                  (message.senderId == otherUserId &&
+                      message.receiverId == currentUserId &&
+                      !message.isRead)
+                  ? message.copyWith(
+                      isRead: true,
+                      readAt: message.readAt ?? DateTime.now(),
+                    )
+                  : message,
+            )
+            .toList();
+        _messageCache[otherUserId] = updated;
+      }
+
+      _conversations = _conversations
+          .map(
+            (conversation) => conversation.user.id == otherUserId
+                ? conversation.copyWith(unreadCount: 0)
+                : conversation,
+          )
+          .toList();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to mark conversation as read: $e');
+    }
   }
 
   /// Dispose resources
@@ -212,4 +290,3 @@ class ChatProvider with ChangeNotifier {
     super.dispose();
   }
 }
-

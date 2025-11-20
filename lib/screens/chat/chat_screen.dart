@@ -26,11 +26,17 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _loadMessages();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final chatProvider = context.read<ChatProvider>();
+      chatProvider.setActiveChat(widget.user.id);
+      _loadMessages();
+    });
   }
 
   @override
   void dispose() {
+    context.read<ChatProvider>().setActiveChat(null);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -41,9 +47,11 @@ class _ChatScreenState extends State<ChatScreen> {
     final chatProvider = context.read<ChatProvider>();
     final messages = await chatProvider.getMessagesWithUser(widget.user.id);
     setState(() {
-      _messages = List<Message>.from(messages.reversed);
+      // Messages are already sorted oldest first, no need to reverse
+      _messages = messages;
       _isLoading = false;
     });
+    await chatProvider.markConversationAsRead(widget.user.id);
     _scrollToBottom();
   }
 
@@ -273,6 +281,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         content: message.content,
                         isMe: isMe,
                         time: timeago.format(message.createdAt),
+                        isRead: message.isRead,
                         isDeleted: message.isDeleted,
                         isEdited: message.isEdited,
                         previousContent: message.previousContent,

@@ -7,6 +7,7 @@ class Message {
   final DateTime createdAt;
   final bool isSent;
   final bool isRead;
+  final DateTime? readAt;
   final bool isDeleted;
   final DateTime? deletedAt;
   final String? deletedBy;
@@ -22,6 +23,7 @@ class Message {
     required this.createdAt,
     this.isSent = true,
     this.isRead = false,
+    this.readAt,
     this.isDeleted = false,
     this.deletedAt,
     this.deletedBy,
@@ -40,6 +42,9 @@ class Message {
       createdAt: DateTime.parse(json['created_at'] as String),
       isSent: json['is_sent'] as bool? ?? true,
       isRead: json['is_read'] as bool? ?? false,
+      readAt: json['read_at'] != null
+          ? DateTime.tryParse(json['read_at'] as String)
+          : null,
       isDeleted: json['is_deleted'] as bool? ?? false,
       deletedAt: json['deleted_at'] != null
           ? DateTime.tryParse(json['deleted_at'] as String)
@@ -63,6 +68,7 @@ class Message {
       'created_at': createdAt.toIso8601String(),
       'is_sent': isSent,
       'is_read': isRead,
+      'read_at': readAt?.toIso8601String(),
       'is_deleted': isDeleted,
       'deleted_at': deletedAt?.toIso8601String(),
       'deleted_by': deletedBy,
@@ -81,6 +87,7 @@ class Message {
     DateTime? createdAt,
     bool? isSent,
     bool? isRead,
+    DateTime? readAt,
     bool? isDeleted,
     DateTime? deletedAt,
     String? deletedBy,
@@ -96,6 +103,7 @@ class Message {
       createdAt: createdAt ?? this.createdAt,
       isSent: isSent ?? this.isSent,
       isRead: isRead ?? this.isRead,
+      readAt: readAt ?? this.readAt,
       isDeleted: isDeleted ?? this.isDeleted,
       deletedAt: deletedAt ?? this.deletedAt,
       deletedBy: deletedBy ?? this.deletedBy,

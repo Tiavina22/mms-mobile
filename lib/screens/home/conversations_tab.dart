@@ -43,6 +43,8 @@ class ConversationsTab extends StatelessWidget {
             itemBuilder: (context, index) {
               final conversation = chatProvider.conversations[index];
               final user = conversation.user;
+              final hasUnread = conversation.unreadCount > 0;
+              final isDark = Theme.of(context).brightness == Brightness.dark;
 
               return ListTile(
                 leading: CircleAvatar(
@@ -54,7 +56,10 @@ class ConversationsTab extends StatelessWidget {
                 ),
                 title: Text(
                   user.username,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w500,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                 ),
                 subtitle: Text(
                   conversation.lastMessage ?? 'No messages yet',
@@ -62,11 +67,14 @@ class ConversationsTab extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: conversation.lastMessage == null
-                        ? Colors.grey
-                        : null,
+                        ? (isDark ? Colors.white60 : Colors.grey)
+                        : (hasUnread
+                              ? (isDark ? Colors.white : Colors.black)
+                              : (isDark ? Colors.white70 : Colors.grey[700])),
                     fontStyle: conversation.lastMessage == null
                         ? FontStyle.italic
-                        : null,
+                        : FontStyle.normal,
+                    fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),
                 trailing: conversation.lastMessageTime != null
@@ -77,36 +85,37 @@ class ConversationsTab extends StatelessWidget {
                           Text(
                             timeago.format(conversation.lastMessageTime!),
                             style: const TextStyle(
-                                fontSize: 12, color: Colors.grey),
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
                           ),
-                    if (conversation.unreadCount > 0)
-                      Container(
-                        margin: const EdgeInsets.only(top: 4),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          conversation.unreadCount.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
+                          if (conversation.unreadCount > 0)
+                            Container(
+                              margin: const EdgeInsets.only(top: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).primaryColor,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                conversation.unreadCount.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
                         ],
                       )
                     : null,
                 onTap: () {
+                  chatProvider.markConversationAsRead(user.id);
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => ChatScreen(user: user),
-                    ),
+                    MaterialPageRoute(builder: (_) => ChatScreen(user: user)),
                   );
                 },
               );
@@ -117,4 +126,3 @@ class ConversationsTab extends StatelessWidget {
     );
   }
 }
-

@@ -21,10 +21,7 @@ class MessageService {
     try {
       final response = await _api.post(
         ApiConfig.sendMessage,
-        body: {
-          'receiver_id': receiverId,
-          'content': content,
-        },
+        body: {'receiver_id': receiverId, 'content': content},
       );
 
       if (_api.isSuccess(response)) {
@@ -47,7 +44,9 @@ class MessageService {
       if (_api.isSuccess(response)) {
         final responseData = jsonDecode(response.body);
         final List<dynamic> data = responseData['data'] as List<dynamic>;
-        return data.map((json) => Message.fromJson(json as Map<String, dynamic>)).toList();
+        return data
+            .map((json) => Message.fromJson(json as Map<String, dynamic>))
+            .toList();
       } else {
         throw Exception(_api.getErrorMessage(response));
       }
@@ -59,25 +58,33 @@ class MessageService {
   /// Get recent conversations
   Future<List<Conversation>> getConversations() async {
     try {
-      print('🔍 Fetching conversations from API...');
       final response = await _api.get(ApiConfig.conversations);
-      print('🔍 Response status: ${response.statusCode}');
 
       if (_api.isSuccess(response)) {
         final responseData = jsonDecode(response.body);
-        print('🔍 Response data: $responseData');
         final List<dynamic> data = responseData['data'] as List<dynamic>;
-        print('🔍 Number of conversations: ${data.length}');
-        final conversations = data.map((json) => Conversation.fromJson(json as Map<String, dynamic>)).toList();
-        print('🔍 Parsed conversations: ${conversations.length}');
+        final conversations = data
+            .map((json) => Conversation.fromJson(json as Map<String, dynamic>))
+            .toList();
         return conversations;
       } else {
-        print('❌ API error: ${_api.getErrorMessage(response)}');
         throw Exception(_api.getErrorMessage(response));
       }
     } catch (e) {
-      print('❌ Exception in getConversations: $e');
       throw Exception('Failed to fetch conversations: $e');
+    }
+  }
+
+  Future<void> markConversationAsRead(String otherUserId) async {
+    try {
+      final response = await _api.put(
+        ApiConfig.markConversationRead(otherUserId),
+      );
+      if (!_api.isSuccess(response)) {
+        throw Exception(_api.getErrorMessage(response));
+      }
+    } catch (e) {
+      throw Exception('Failed to mark conversation as read: $e');
     }
   }
 
@@ -105,9 +112,7 @@ class MessageService {
 
   Future<Message?> deleteMessage(String messageId) async {
     try {
-      final response = await _api.delete(
-        ApiConfig.messageById(messageId),
-      );
+      final response = await _api.delete(ApiConfig.messageById(messageId));
 
       if (_api.isSuccess(response)) {
         final responseData = jsonDecode(response.body);
@@ -121,4 +126,3 @@ class MessageService {
     }
   }
 }
-

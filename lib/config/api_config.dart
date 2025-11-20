@@ -30,6 +30,9 @@ class ApiConfig {
   static String messagesBetween(String userId) =>
       '$apiPrefix/messages/conversation/$userId';
   static const String conversations = '$apiPrefix/messages/conversations';
+  static String markConversationRead(String userId) =>
+      '$apiPrefix/messages/read/$userId';
+  static const String unreadMessageCount = '$apiPrefix/messages/unread/count';
   static String messageById(String messageId) =>
       '$apiPrefix/messages/$messageId';
 

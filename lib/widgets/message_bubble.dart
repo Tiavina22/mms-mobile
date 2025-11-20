@@ -4,6 +4,7 @@ class MessageBubble extends StatelessWidget {
   final String content;
   final bool isMe;
   final String time;
+  final bool isRead;
   final bool isDeleted;
   final bool isEdited;
   final String? previousContent;
@@ -14,6 +15,7 @@ class MessageBubble extends StatelessWidget {
     required this.content,
     required this.isMe,
     required this.time,
+    this.isRead = false,
     this.isDeleted = false,
     this.isEdited = false,
     this.previousContent,
@@ -75,12 +77,27 @@ class MessageBubble extends StatelessWidget {
                   ),
                 ),
               const SizedBox(height: 4),
-              Text(
-                time,
-                style: TextStyle(
-                  color: textColor.withOpacity(0.8),
-                  fontSize: 12,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    time,
+                    style: TextStyle(
+                      color: textColor.withOpacity(0.8),
+                      fontSize: 12,
+                    ),
+                  ),
+                  if (isMe && !isDeleted)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: Icon(
+                        isRead ? Icons.done_all : Icons.done,
+                        size: 16,
+                        color: textColor.withOpacity(isRead ? 1.0 : 0.7),
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
